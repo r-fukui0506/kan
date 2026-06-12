@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>漢文 返り点配置ゲーム（20問版）</title>
+    <style>
+        body {
+            font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+            background-color: #f9f9f9;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .progress-text {
+            font-size: 16px;
+            font-weight: bold;
+            color: #7f8c8d;
+            margin-bottom: 10px;
+        }
+
+        .instructions {
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            max-width: 600px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .explain-trigger-btn {
+            background-color: #f39c12;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            box-shadow: 0 2px 0 #d35400;
+            margin-bottom: 20px;
+        }
+        .explain-trigger-btn:hover { background-color: #e67e22; }
+
+        /* 漢文を「縦書き（右から左）」で配置するコンテナ */
+        .kanbun-container {
+            display: flex;
+            flex-direction: row-reverse;
+            justify-content: center;
+            background-color: #fff;
+            padding: 30px 50px;
+            border: 2px solid #333;
+            border-radius: 4px;
+            min-height: 380px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .kanbun-column {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0 20px;
+        }
+
+        .kanji-block {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            width: 70px;
+            height: 75px;
+        }
+
+        .kanji {
+            font-size: 42px;
+            font-family: "Yu Mincho", "MS Mincho", serif;
+            line-height: 1;
+            z-index: 2;
+            user-select: none;
+        }
+
+        .reading-order {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            font-size: 12px;
+            color: #e74c3c;
+            font-weight: bold;
+            background-color: #fde8e8;
+            border: 1px solid #e74c3c;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 3;
+        }
+
+        .kaeriten-btn {
+            position: absolute;
+            bottom: 3px;
+            left: -4px;
+            width: 26px;
+            height: 26px;
+            font-size: 13px;
+            font-weight: bold;
+            color: #7f8c8d;
+            background-color: rgba(236, 240, 241, 0.8);
+            border: 1px dashed #bdc3c7;
+            border-radius: 3px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 3;
+            transition: all 0.1s;
+        }
+
+        .kaeriten-btn:hover {
+            background-color: #d5dbdb;
+            border-color: #95a5a6;
+        }
+
+        .kaeriten-btn.active {
+            background-color: transparent;
+            color: #000;
+            border: none;
+            font-size: 16px;
+            font-family: "Yu Mincho", "MS Mincho", serif;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        button.action-btn {
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #2ecc71;
+            color: white;
+            box-shadow: 0 3px 0 #27ae60;
+        }
+
+        button.action-btn:active {
+            transform: translateY(3px);
+            box-shadow: none;
+        }
+
+        #next-btn { background-color: #3498db; box-shadow: 0 3px 0 #2980b9; }
+
+        #result {
+            font-size: 22px;
+            font-weight: bold;
+            height: 35px;
+            margin-bottom: 10px;
+        }
+
+        .correct { color: #2ecc71; }
+        .wrong { color: #e74c3c; }
+
+        .answer-explanation {
+            display: none;
+            background-color: #eef7f2;
+            border-left: 5px solid #2ecc71;
+            padding: 15px;
+            max-width: 600px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+
+        /* --- 解説モーダル --- */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 10;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 85vh;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 15px; right: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #aaa;
+            z-index: 12;
+        }
+        .close-btn:hover { color: #333; }
+
+        .vertical-explain-container {
+            writing-mode: vertical-rl;
+            -ms-writing-mode: tb-rl;
+            overflow-x: auto;
+            padding-bottom: 20px;
+            font-family: "Yu Mincho", "MS Mincho", serif;
+            height: 450px;
+        }
+
+        .vertical-explain-container h2 {
+            margin-left: 20px;
+            color: #2c3e50;
+            border-left: 2px solid #f39c12;
+            padding-left: 8px;
+            font-size: 24px;
+        }
+
+        .rule-section {
+            margin-left: 40px;
+            display: inline-block;
+            vertical-align: top;
+        }
+
+        .rule-title {
+            font-weight: bold;
+            font-size: 18px;
+            color: #e67e22;
+            margin-bottom: 10px;
+        }
+
+        .rule-body {
+            font-size: 16px;
+            line-height: 1.8;
+        }
+
+        .v-example {
+            background-color: #f0f4f8;
+            padding: 10px 5px;
+            border-top: 3px solid #3498db;
+            margin-top: 10px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>漢文 返り点配置ゲーム</h1>
+    <div class="progress-text" id="progress-indicator">第 1 / 20 問</div>
+    
+    <div class="instructions">
+        <p><strong>ルール:</strong> 漢字の右上にある赤丸の数字は<strong>「読む順番」</strong>です。その順番通りに読めるよう、各漢字の<strong>左下にある四角</strong>をクリックして正しい返り点をつけてください。</p>
+    </div>
+
+    <button class="explain-trigger-btn" onclick="openModal()">💡 返り点のルール（縦書き説明）をみる</button>
+
+    <div class="kanbun-container" id="kanbun-stage"></div>
+
+    <div id="result"></div>
+    <div id="explanation-box" class="answer-explanation"></div>
+
+    <div class="controls">
+        <button class="action-btn" onclick="checkAnswer()">判定する</button>
+        <button class="action-btn" id="next-btn" onclick="nextQuestion()">次の問題</button>
+    </div>
+
+    <div id="explain-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <div class="vertical-explain-container">
+                <h2>返り点の種類とルール</h2>
+                <p style="color: #666; margin-left: 30px;">漢文は原則として上から下に読みますが、返り点があるときは下から上へ戻って読みます。右から左へ読んでね。</p>
+                
+                <div class="rule-section">
+                    <div class="rule-title">一、レ点（れてん）</div>
+                    <div class="rule-body">
+                        直下の一個の漢字から、直上の一つの漢字へ戻って読むときに使います。<br>
+                        <span class="v-example">不（レ）来 →「来たらず」と読む（来①→不②）</span>
+                    </div>
+                </div>
+
+                <div class="rule-section">
+                    <div class="rule-title">二、一・二点（いちにてん）</div>
+                    <div class="rule-body">
+                        漢字を二つ以上またいで上に戻りたいときに使います。<br>
+                        必ず「一」のついた漢字を先に読み、そのあと「二」の漢字へ戻ります。<br>
+                        <span class="v-example">辞（二）白帝城（一） →「白帝城を辞す」</span>
+                    </div>
+                </div>
+
+                <div class="rule-section">
+                    <div class="rule-title">三、上・下点（じょうげてん）</div>
+                    <div class="rule-body">
+                        「一・二点」のセットをさらに外側から大きくまたいで戻りたいときに使います。<br>
+                        「上」のついた漢字のフレーズをすべて読んだあと、「下」の漢字へ戻ります。
+                    </div>
+                </div>
+
+                <div class="rule-section">
+                    <div class="rule-title">四、一レ点（いちれてん）</div>
+                    <div class="rule-body">
+                        「一」の役割と「レ」の役割が同じ漢字に重なったものです。<br>
+                        下からレ点を使って上がってきた勢いのまま、そこを「一」とみなして「二」の漢字へ戻ります。
+                    </div>
+                </div>
+            </div>
+            <p style="text-align: center; margin: 0;">
+                <button class="action-btn" style="background-color: #34495e; box-shadow: 0 3px 0 #2c3e50; padding: 8px 16px; font-size: 14px;" onclick="closeModal()">閉じる</button>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const kaeritenOptions = ["", "レ", "一", "二", "三", "上", "下", "一レ"];
+
+        // 中学校レベルの漢文・基礎20問データ
+        const questions = [
+            {
+                kanbun: [{ kanji: "不", order: 2, answer: "レ" }, { kanji: "来", order: 1, answer: "" }],
+                explain: "<strong>【第1問 解説：レ点】</strong>「来（1）」を読んだ直後に、1マス上にある「不（2）」に戻るため、一番シンプルな<strong>「レ点」</strong>を「不」につけます。"
+            },
+            {
+                kanbun: [{ kanji: "読", order: 2, answer: "レ" }, { kanji: "書", order: 1, answer: "" }],
+                explain: "<strong>【第2問 解説：レ点】</strong>「書（1）」を読んだらすぐに上に戻って「読（2）」を読みます。「書を読む」となるため、上の文字に<strong>「レ点」</strong>を打ちます。"
+            },
+            {
+                kanbun: [{ kanji: "流", order: 1, answer: "" }, { kanji: "水", order: 2, answer: "" }],
+                explain: "<strong>【第3問 解説：返り点なし】</strong>「流（1）水（2）」と、上から順番にそのまま読めるので、返り点は必要ありません（空欄が正解です）。"
+            },
+            {
+                kanbun: [{ kanji: "辞", order: 4, answer: "二" }, { kanji: "白", order: 1, answer: "" }, { kanji: "帝", order: 2, answer: "" }, { kanji: "城", order: 3, answer: "一" }],
+                explain: "<strong>【第4問 解説：一・二点】</strong>「白(1)帝(2)城(3)」と読んだあとに、大きくまたいで一番上の「辞(4)」に戻ります。二文字以上離れているので<strong>「一・二点」</strong>を使います。出発点に「一」、戻り先に「二」です。"
+            },
+            {
+                kanbun: [{ kanji: "学", order: 1, answer: "" }, { kanji: "而", order: 2, answer: "" }, { kanji: "時", order: 3, answer: "" }, { kanji: "習", order: 5, answer: "二" }, { kanji: "之", order: 4, answer: "一" }],
+                explain: "<strong>【第5問 解説：一・二点】</strong>「学(1)而(2)時(3)」と進み、その次は「習」を飛ばして「之(4)」を読み、そこから「習(5)」へ戻ります。二文字以上またぐため、之に「一」、習に「二」の<strong>「一・二点」</strong>をつけます。"
+            },
+            {
+                kanbun: [{ kanji: "有", order: 3, answer: "二" }, { kanji: "朋", order: 1, answer: "" }, { kanji: "遠", order: 2, answer: "一" }],
+                explain: "<strong>【第6問 解説：一・二点】</strong>論語の有名な一節です。「朋(1)遠(2)」と読んだ後に、一番上の「有(3)」に戻ります。「遠」から「有」へ二文字分戻るため、遠に「一」、有に「二」の<strong>「一・二点」</strong>になります。"
+            },
+            {
+                kanbun: [{ kanji: "不", order: 3, answer: "二" }, { kanji: "如", order: 2, answer: "一" }, { kanji: "学", order: 1, answer: "" }],
+                explain: "<strong>【第7問 解説：レ点と一・二点の見分け】</strong>「学(1)」からすぐ上の「如(2)」に戻るため、まず「如」に<strong>「レ点」</strong>をつけたくなりますが、その次にさらに上の「不(3)」に戻る必要があります。「学(1)→如(2)→不(3)」と下から上へ連続して2文字以上戻るため、ここはレ点ではなく<strong>「一・二点」</strong>（如＝一、不＝二）を使います。"
+            },
+            {
+                kanbun: [{ kanji: "知", order: 3, answer: "二" }, { kanji: "天", order: 1, answer: "" }, { kanji: "命", order: 2, answer: "一" }],
+                explain: "<strong>【第8問 解説：一・二点】</strong>「天(1)命(2)」を先に読んでから、動詞の「知(3)」に戻る（天命を知る）ため、命に「一」、知に「二」の<strong>「一・二点」</strong>を配置します。"
+            },
+            {
+                kanbun: [{ kanji: "見", order: 3, answer: "二" }, { kanji: "賢", order: 1, answer: "" }, { kanji: "思", order: 2, answer: "一" }],
+                explain: "<strong>【第9問 解説：一・二点】</strong>「賢（けん）を見ては斉（ひと）しからんことを思う」の一部です。「賢(1)思(2)」と読んだ後に、一番上の「見(3)」に戻るので、思に「一」、見に「二」を打ちます。"
+            },
+            {
+                kanbun: [{ kanji: "温", order: 2, answer: "二" }, { kanji: "故", order: 1, answer: "一" }],
+                explain: "<strong>【第10問 解説：間違いやすい一・二点】</strong>「故（ふる）きを温（おたず）ぬ」です。「故(1)」からすぐ上の「温(2)」に戻ります。隣の文字に戻るだけなので「レ点」のように見えますが、漢文の世界では『二文字以上の熟語（温故）』を一つのカタマリとして読むため、ここには<strong>「一・二点」</strong>（故＝一、温＝二）を打つのが正式なルールです。"
+            },
+            {
+                kanbun: [{ kanji: "不", order: 4, answer: "三" }, { kanji: "識", order: 3, answer: "二" }, { kanji: "廬", order: 1, answer: "" }, { kanji: "山", order: 2, answer: "一" }],
+                explain: "<strong>【第11問 解説：一・二・三点】</strong>「廬(1)山(2)」を読んだあと、「識(3)」に戻り、さらにその上の「不(4)」に戻ります。「一」から「二」、そして「三」へと順番に上がっていくため、山＝一、識＝二、不＝三の<strong>「一・二・三点」</strong>になります。"
+            },
+            {
+                kanbun: [{ kanji: "愛", order: 4, answer: "二" }, { kanji: "蓮", order: 1, answer: "" }, { kanji: "説", order: 2, answer: "一" }, { kanji: "也", order: 3, answer: "" }],
+                explain: "<strong>【第12問 解説：文末の置き字に注意】</strong>「也（なり）」は読まない文字（置き字）または順番が最後になる助詞です。ここでは「蓮(1)説(2)」の後に「愛(4)」に戻るため、説に「一」、愛に「二」をつけます。「也(3)」は返り点の影響を受けずに途中でそのまま読まれます。"
+            },
+            {
+                kanbun: [{ kanji: "不", order: 3, answer: "レ" }, { kanji: "畏", order: 2, answer: "一" }, { kanji: "虎", order: 1, answer: "" }],
+                explain: "<strong>【第13問 解説：連続する返り点】</strong>「虎(1)」から「畏(2)」へ一文字戻る（畏に一）、そこからさらに上の「不(3)」へ一文字戻る。このように上へ連なって戻る場合は、一番下に「一」、その上に「レ」を置いて<strong>「下から一→レ→その上」</strong>と連鎖させます。（畏＝一、不＝レ）"
+            },
+            {
+                kanbun: [{ kanji: "助", order: 3, answer: "二" }, { kanji: "長", order: 2, answer: "レ" }, { kanji: "之", order: 1, answer: "" }],
+                explain: "<strong>【第14問 解説：レ点と一・二点】</strong>「之(1)」から「長(2)」へすぐ戻るので長に<strong>「レ点」</strong>。そこから「助(3)」へは二文字またぐ形になるため、長に「一」、助に「二」を…としたいですが、一つの場所に「一」と「レ」が重なるときは、合体した<strong>「一レ点」</strong>を使います。（長＝一レ、助＝二）"
+            },
+            {
+                kanbun: [{ kanji: "未", order: 5, answer: "下" }, { kanji: "見", order: 4, answer: "一レ" }, { kanji: "大", order: 1, answer: "" }, { kanji: "鳥", order: 2, answer: "二" }, { kanji: "飛", order: 3, answer: "上" }],
+                explain: "<strong>【第15問 解説：上・下点と一レ点】</strong>大(1)鳥(2)飛(3)のあと、すぐ上の「見(4)」にレ点で戻りますが、そのあと一番上の「未(5)」に戻る必要があります。「大鳥飛」の中にはすでに『飛(上)・鳥(二)』という返り点のペアがあるため、それを外側から大きくまたぐために<strong>「上・下点」</strong>（飛＝上、未＝下）を使います。よって「見」の位置は「レ点」と「一（ここでは上・下点を挟むので一の役割）」が合体し、<strong>「一レ点」</strong>になります。"
+            },
+            {
+                kanbun: [{ kanji: "欲", order: 5, answer: "下" }, { kanji: "尽", order: 4, answer: "二" }, { kanji: "千", order: 1, answer: "" }, { kanji: "里", order: 2, answer: "一" }, { kanji: "目", order: 3, answer: "上" }],
+                explain: "<strong>【第16問 解説：上・下点】</strong>「千(1)里(2)」を読んだ後、一度「目(3)」に飛び、そこから「尽(4)」に戻り（目＝上、尽＝二）、最後に一番上の「欲(5)」に大きく戻ります。一・二点（里＝一、尽＝二）のセットをまたいで一番上に戻るため、目＝上、欲＝下という<strong>「上・下点」</strong>を配置します。"
+            },
+            {
+                kanbun: [{ kanji: "不", order: 4, answer: "下" }, { kanji: "為", order: 3, answer: "上" }, { kanji: "人", order: 1, answer: "" }, { kanji: "虎", order: 2, answer: "" }],
+                explain: "<strong>【第17問 解説：上・下点のシンプル構造】</strong>「人(1)虎(2)」と読んだあと、「為(3)」に戻り、さらに「不(4)」に戻ります。「人虎」をひとかたまり（一・二点に相当）とみなして大きく戻るため、為に「上」、不に「下」の<strong>「上・下点」</strong>を打ちます。"
+            },
+            {
+                kanbun: [{ kanji: "不", order: 5, answer: "下" }, { kanji: "敢", order: 4, answer: "上" }, { kanji: "食", order: 3, answer: "二" }, { kanji: "之", order: 2, answer: "一" }, { kanji: "也", order: 1, answer: "" }],
+                explain: "<strong>【第18問 解説：置き字と上下点】</strong>最初の「也(1)」からスタートし、「之(2)食(3)」で一・二点（之＝一、食＝二）。そこから「敢(4)」「不(5)」へと大きく上に戻っていくため、敢に「上」、不に「下」の<strong>「上・下点」</strong>をつけます。"
+            },
+            {
+                kanbun: [{ kanji: "不", order: 4, answer: "下" }, { kanji: "能", order: 3, answer: "一レ" }, { kanji: "渡", order: 1, answer: "" }, { kanji: "河", order: 2, answer: "二" }],
+                explain: "<strong>【第19問 解説：難関・一レ点と上下点】</strong>「渡(1)河(2)」のあと、すぐ上の「能(3)」にレ点で戻ります。その後、一番上の「不(4)」に大きく戻りますが、下に「河(二)」があるため、それをまたぐために「能＝上（一点の代わり）」「不＝下」にします。レ点と上が合体するので、文字としては<strong>「一レ点」</strong>を「能」につけます。"
+            },
+            {
+                kanbun: [{ kanji: "孤", order: 1, answer: "" }, { kanji: "帆", order: 2, answer: "" }, { kanji: "遠", order: 4, answer: "二" }, { kanji: "影", order: 3, answer: "一" }, { kanji: "碧", order: 5, answer: "" }, { kanji: "空", order: 6, answer: "" }, { kanji: "尽", order: 8, answer: "下" }, { kanji: "呉", order: 7, answer: "上" }],
+                explain: "<strong>【第20問 最難関：すべての組み合わせ】</strong>李白の有名な詩です。「孤(1)帆(2)影(3)遠(4)碧(5)空(6)呉(7)尽(8)」という順で読みます。途中、「影(3)」から「遠(4)」に二文字戻るため影＝一、遠＝二。最後は「呉(7)」から「尽(8)」に二文字戻りますが、途中に「一・二点」を挟んでいるため、呉＝上、尽＝下という<strong>「上・下点」</strong>をつけます。これで20問全問クリアです！お疲れ様でした！"
+            }
+        ];
+
+        let currentQuestionIndex = 0;
+        let userAnswers = [];
+
+        function loadQuestion(index) {
+            // 問題数のカウント更新
+            document.getElementById("progress-indicator").innerText = `第 ${index + 1} / 20 問`;
+
+            const stage = document.getElementById("kanbun-stage");
+            document.getElementById("result").innerHTML = "";
+            
+            const explainBox = document.getElementById("explanation-box");
+            explainBox.style.display = "none";
+            explainBox.innerHTML = "";
+
+            stage.innerHTML = "";
+            
+            const q = questions[index];
+            userAnswers = new Array(q.kanbun.length).fill(""); 
+
+            const column = document.createElement("div");
+            column.className = "kanbun-column";
+
+            q.kanbun.forEach((item, idx) => {
+                const block = document.createElement("div");
+                block.className = "kanji-block";
+
+                const orderText = document.createElement("div");
+                orderText.className = "reading-order";
+                orderText.innerText = item.order;
+
+                const kanjiText = document.createElement("div");
+                kanjiText.className = "kanji";
+                kanjiText.innerText = item.kanji;
+
+                const btn = document.createElement("button");
+                btn.className = "kaeriten-btn";
+                btn.id = `btn-${idx}`;
+                btn.innerText = "・"; 
+                btn.onclick = () => toggleKaeriten(idx);
+
+                block.appendChild(orderText);
+                block.appendChild(kanjiText);
+                block.appendChild(btn);
+                column.appendChild(block);
+            });
+
+            stage.appendChild(column);
+        }
+
+        function toggleKaeriten(idx) {
+            let currentOptionIdx = kaeritenOptions.indexOf(userAnswers[idx]);
+            let nextOptionIdx = (currentOptionIdx + 1) % kaeritenOptions.length;
+            
+            userAnswers[idx] = kaeritenOptions[nextOptionIdx];
+            const btn = document.getElementById(`btn-${idx}`);
+            
+            if (kaeritenOptions[nextOptionIdx] !== "") {
+                btn.innerText = kaeritenOptions[nextOptionIdx];
+                btn.classList.add("active");
+            } else {
+                btn.innerText = "・";
+                btn.classList.remove("active");
+            }
+        }
+
+        function checkAnswer() {
+            const q = questions[currentQuestionIndex];
+            let isCorrect = true;
+
+            q.kanbun.forEach((item, idx) => {
+                if (userAnswers[idx] !== item.answer) {
+                    isCorrect = false;
+                }
+            });
+
+            const resultDiv = document.getElementById("result");
+            if (isCorrect) {
+                resultDiv.innerHTML = '<span class="correct">正解！ 🎉</span>';
+            } else {
+                resultDiv.innerHTML = '<span class="wrong">ざんねん！もう一度たしかめてみよう 🤔</span>';
+            }
+
+            const explainBox = document.getElementById("explanation-box");
+            explainBox.innerHTML = q.explain;
+            explainBox.style.display = "block";
+        }
+
+        function nextQuestion() {
+            currentQuestionIndex = (currentQuestionIndex + 1) % questions.length;
+            loadQuestion(currentQuestionIndex);
+        }
+
+        function openModal() {
+            document.getElementById("explain-modal").style.display = "flex";
+        }
+
+        function closeModal() {
+            document.getElementById("explain-modal").style.display = "none";
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById("explain-modal");
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+
+        window.onload = () => {
+            loadQuestion(currentQuestionIndex);
+        };
+    </script>
+</body>
+</html>
